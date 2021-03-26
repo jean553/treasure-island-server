@@ -1,0 +1,3 @@
+.vagrant/
+*.swp
+treasure-island-server/target/
