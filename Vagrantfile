@@ -31,5 +31,17 @@ Vagrant.configure(2) do |config|
       ]
     end
     app.ssh.username = "vagrant"
+
+    app.vm.provision "add_help", type: "shell" do |s|
+      zshrc = <<~EORUBY
+        echo "Move into the application directory:"
+        echo "  $fg[green]cd treasure-island-server/$fg[white]"
+        echo "Build the server:"
+        echo "  $fg[green]cargo build --release$fg[white]"
+        echo "Start the server:"
+        echo "  $fg[green]./target/release/treasure-island-server$fg[white]"
+      EORUBY
+      s.inline = "echo '#{zshrc}' >> /home/vagrant/.zshrc"
+    end
   end
 end
