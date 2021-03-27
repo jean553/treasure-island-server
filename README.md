@@ -2,6 +2,10 @@
 
 The server application of TreasureIsland.
 
+ * TCP
+ * Multi-threading
+ * senders / receivers channels
+
 ## Start the environment
 
 ```sh
