@@ -1,5 +1,7 @@
 # treasure-island-server
 
+**This is a work in progress**
+
 The server application of TreasureIsland.
 
  * TCP
