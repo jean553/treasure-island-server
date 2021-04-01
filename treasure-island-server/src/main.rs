@@ -29,6 +29,9 @@ fn forward_messages_from_global_receiver_to_all_clients(
 
     loop {
 
+        /* FIXME: #5 investigate why the recv() function returns an error
+           the first time it is executed, causing the whole thread to panic and to stop */
+
         /* blocking until messages come from the global receiver */
         let message = global_receiver.recv().unwrap();
 
