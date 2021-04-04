@@ -74,7 +74,13 @@ fn send_message_into_client_stream(
     loop {
 
         /* blocks until message comes from the current client sender */
-        let message = client_receiver.recv().unwrap();
+        let mut message = client_receiver.recv().unwrap();
+
+        /* ensures the message contains a line break at the end,
+           as the client considers the message is received at a line break */
+        message.push('\n');
+
+        println!("Send message to client...");
 
         client_stream.write(message.as_bytes()).unwrap();
     }
@@ -160,7 +166,8 @@ fn main() {
 
         println!("Sending map information to clients...");
 
-        /* TODO: sends common level information to all clients */
+        /* TODO: sends common level information to all clients;
+           sends string for tests now; maybe it should send serialized objects */
 
         for client_out_sender in client_out_senders {
 
