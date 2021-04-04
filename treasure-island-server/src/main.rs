@@ -29,11 +29,17 @@ fn forward_messages_from_global_receiver_to_all_clients(
 
     loop {
 
-        /* FIXME: #5 investigate why the recv() function returns an error
-           the first time it is executed, causing the whole thread to panic and to stop */
-
         /* blocking until messages come from the global receiver */
-        let message = global_receiver.recv().unwrap();
+        let message = global_receiver.recv();
+
+        /* FIXME: #5 investigate why the recv() function returns an error
+           the first time it is executed, causing the whole thread to panic and to stop;
+           simply ignore the error for now */
+        if message.is_err() {
+            continue;
+        }
+
+        let message = message.unwrap();
 
         /* blocking until there is no use of the clients out senders array from another thread */
         let clients_out_senders_mutex_guard = clients_out_senders_mutex_arc.lock().unwrap();
