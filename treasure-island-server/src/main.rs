@@ -103,9 +103,20 @@ fn main() {
         ) = channel();
 
         let mut client_out_senders_mutex_guard = clients_out_senders_mutex_main_thread_arc.lock().unwrap();
-        let senders = &mut *client_out_senders_mutex_guard;
-        senders.push(client_sender);
+        let client_out_senders = &mut *client_out_senders_mutex_guard;
+        client_out_senders.push(client_sender);
 
         println!("{} added into clients list", client_address);
+
+        const CLIENTS_PER_GAME_AMOUNT: usize = 2;
+        if client_out_senders.len() != CLIENTS_PER_GAME_AMOUNT {
+
+            println!("Waiting for more clients to connect...");
+            continue;
+        }
+
+        println!("Sending map information to clients...");
+
+        /* TODO: sends common level information to all clients */
     }
 }
