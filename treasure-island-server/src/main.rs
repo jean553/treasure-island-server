@@ -1,4 +1,9 @@
-//! TCP server app
+#[cfg(feature = "serde_derive")]
+
+extern crate bincode;
+extern crate serde_derive;
+
+use serde_derive::{Serialize};
 
 use std::net::{
     TcpListener,
@@ -20,6 +25,16 @@ use std::sync::{
 
 use std::io::Write;
 
+/// Structure of a message between the server and the client.
+/// NOTE: only one field wrapped into a structure for now, but more fields will be added later
+///
+/// FIXME: for tests only, we assume the map is 32 tiles-long, as it is not possible to serialize
+/// arrays of more than 32 values; we should divide the map into separated arrays to sent its data;
+#[derive(Serialize, Clone, Copy)]
+struct Message {
+    map: [u8; 32]
+}
+
 /// Contains the whole code of a dedicated thread. Continuously forwards the messages from the
 /// global receiver to all the clients out senders (so to all the clients individually).
 ///
@@ -28,8 +43,8 @@ use std::io::Write;
 /// `global_receiver` - the unique global receiver that centralizes all messages for all clients
 /// `clients_out_senders_mutex_arc` - protected pointer to the array of clients out senders
 fn forward_messages_from_global_receiver_to_all_clients(
-    global_receiver: Receiver<String>,
-    clients_out_senders_mutex_arc: Arc<Mutex<Vec<Sender<String>>>>,
+    global_receiver: Receiver<Message>,
+    clients_out_senders_mutex_arc: Arc<Mutex<Vec<Sender<Message>>>>,
 ) {
 
     loop {
@@ -52,8 +67,6 @@ fn forward_messages_from_global_receiver_to_all_clients(
         let clients_out_senders = &*clients_out_senders_mutex_guard;
 
         for client_out_sender in clients_out_senders {
-
-            let message = message.to_string();
             client_out_sender.send(message).unwrap();
         }
     }
@@ -67,7 +80,7 @@ fn forward_messages_from_global_receiver_to_all_clients(
 /// `client_receiver` - the dedicated receiver of the client, to get messages to send
 /// `client_stream` - the dedicated stream of the client, to send message to him
 fn send_message_into_client_stream(
-    client_receiver: Receiver<String>,
+    client_receiver: Receiver<Message>,
     mut client_stream: TcpStream,
 ) {
 
@@ -76,7 +89,8 @@ fn send_message_into_client_stream(
         /* blocks until message comes from the current client sender */
         let message = client_receiver.recv().unwrap();
 
-        client_stream.write(message.as_bytes()).unwrap();
+        let data: Vec<u8> = bincode::serialize(&message).unwrap();
+        client_stream.write(&data).unwrap();
     }
 }
 
@@ -89,14 +103,14 @@ fn main() {
     /* create the global receiver into which one every message
        is sent in order to be forwarded to all clients */
     let (_, global_receiver): (
-        Sender<String>,
-        Receiver<String>,
+        Sender<Message>,
+        Receiver<Message>,
     ) = channel();
 
     /* create a dynamic array of senders (one per client)
        used to forward all messages from the global receiver
        in order to broadcast out messages to all clients */
-    let clients_out_senders: Vec<Sender<String>> = Vec::new();
+    let clients_out_senders: Vec<Sender<Message>> = Vec::new();
 
     /* clients out senders array is part of the main thread,
        in order to dynamically add one client out sender
@@ -106,8 +120,8 @@ fn main() {
        we have to protect it with a mutex
        to prevent concurrent access;
        we can then safely clone the clients out senders array pointer */
-    let clients_out_senders_mutex: Mutex<Vec<Sender<String>>> = Mutex::new(clients_out_senders);
-    let clients_out_senders_mutex_main_thread_arc: Arc<Mutex<Vec<Sender<String>>>> = Arc::new(clients_out_senders_mutex);
+    let clients_out_senders_mutex: Mutex<Vec<Sender<Message>>> = Mutex::new(clients_out_senders);
+    let clients_out_senders_mutex_main_thread_arc: Arc<Mutex<Vec<Sender<Message>>>> = Arc::new(clients_out_senders_mutex);
     let clients_out_senders_mutex_global_receiver_to_all_clients_thread_arc = clients_out_senders_mutex_main_thread_arc.clone();
 
     spawn(|| {
@@ -130,8 +144,8 @@ fn main() {
             client_sender,
             client_receiver,
         ): (
-            Sender<String>,
-            Receiver<String>
+            Sender<Message>,
+            Receiver<Message>
         ) = channel();
 
         println!("Copy client stream and create dedicated thread to communicate with {}", client_address);
@@ -164,8 +178,18 @@ fn main() {
 
         for client_out_sender in client_out_senders {
 
-            const TEST_MESSAGE: &str = "TEST-MESSAGE-TO-CLIENTS";
-            client_out_sender.send(TEST_MESSAGE.to_string()).unwrap();
+            /* FIXME: does not send 0 values as the client uses the first index
+               value of the sent data to know if it should consider the message or not */
+            const DEFAULT_VALUE: u8 = 10;
+            const MAP_LENGTH: usize = 32;
+            let message = Message {
+                map: [
+                    DEFAULT_VALUE;
+                    MAP_LENGTH
+                ]
+            };
+
+            client_out_sender.send(message).unwrap();
         }
     }
 }
