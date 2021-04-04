@@ -1,6 +1,9 @@
 //! TCP server app
 
-use std::net::TcpListener;
+use std::net::{
+    TcpListener,
+    TcpStream,
+};
 
 use std::sync::mpsc::{
     Sender,
@@ -14,6 +17,8 @@ use std::sync::{
     Mutex,
     Arc,
 };
+
+use std::io::Write;
 
 /// Contains the whole code of a dedicated thread. Continuously forwards the messages from the
 /// global receiver to all the clients out senders (so to all the clients individually).
@@ -51,6 +56,27 @@ fn forward_messages_from_global_receiver_to_all_clients(
             let message = message.to_string();
             client_out_sender.send(message).unwrap();
         }
+    }
+}
+
+/// Contains the whole code of a dedicated thread. This thread is spawn once per new client.
+/// Continuously forwards the client dedicated receiver to the client dedicated stream.
+///
+/// # Args:
+///
+/// `client_receiver` - the dedicated receiver of the client, to get messages to send
+/// `client_stream` - the dedicated stream of the client, to send message to him
+fn send_message_into_client_stream(
+    client_receiver: Receiver<String>,
+    mut client_stream: TcpStream,
+) {
+
+    loop {
+
+        /* blocks until message comes from the current client sender */
+        let message = client_receiver.recv().unwrap();
+
+        client_stream.write(message.as_bytes()).unwrap();
     }
 }
 
@@ -102,11 +128,22 @@ fn main() {
 
         let (
             client_sender,
-            _,
+            client_receiver,
         ): (
             Sender<String>,
             Receiver<String>
         ) = channel();
+
+        println!("Copy client stream and create dedicated thread to communicate with {}", client_address);
+
+        let stream = stream.try_clone().unwrap();
+
+        spawn(|| {
+            send_message_into_client_stream(
+                client_receiver,
+                stream,
+            );
+        });
 
         let mut client_out_senders_mutex_guard = clients_out_senders_mutex_main_thread_arc.lock().unwrap();
         let client_out_senders = &mut *client_out_senders_mutex_guard;
@@ -124,5 +161,11 @@ fn main() {
         println!("Sending map information to clients...");
 
         /* TODO: sends common level information to all clients */
+
+        for client_out_sender in client_out_senders {
+
+            const TEST_MESSAGE: &str = "TEST-MESSAGE-TO-CLIENTS";
+            client_out_sender.send(TEST_MESSAGE.to_string()).unwrap();
+        }
     }
 }
