@@ -36,7 +36,7 @@ fn forward_messages_from_global_receiver_to_all_clients(
         let message = global_receiver.recv().unwrap();
 
         /* blocking until there is no use of the clients out senders array from another thread */
-        let clients_out_senders_mutex_guard = clients_out_senders_mutex_arc.lock().unwrap(); 
+        let clients_out_senders_mutex_guard = clients_out_senders_mutex_arc.lock().unwrap();
 
         let clients_out_senders = &*clients_out_senders_mutex_guard;
 
@@ -72,14 +72,16 @@ fn main() {
        into the thread that forwards messages from
        the global receiver to all clients;
        we have to protect it with a mutex
-       to prevent concurrent access */
+       to prevent concurrent access;
+       we can then safely clone the clients out senders array pointer */
     let clients_out_senders_mutex: Mutex<Vec<Sender<String>>> = Mutex::new(clients_out_senders);
-    let clients_out_senders_mutex_arc: Arc<Mutex<Vec<Sender<String>>>> = Arc::new(clients_out_senders_mutex);
+    let clients_out_senders_mutex_main_thread_arc: Arc<Mutex<Vec<Sender<String>>>> = Arc::new(clients_out_senders_mutex);
+    let clients_out_senders_mutex_global_receiver_to_all_clients_thread_arc = clients_out_senders_mutex_main_thread_arc.clone();
 
     spawn(|| {
         forward_messages_from_global_receiver_to_all_clients(
             global_receiver,
-            clients_out_senders_mutex_arc
+            clients_out_senders_mutex_global_receiver_to_all_clients_thread_arc
         );
     });
 
@@ -91,5 +93,19 @@ fn main() {
             .unwrap();
 
         println!("New client connected from {}", client_address);
+
+        let (
+            client_sender,
+            _,
+        ): (
+            Sender<String>,
+            Receiver<String>
+        ) = channel();
+
+        let mut client_out_senders_mutex_guard = clients_out_senders_mutex_main_thread_arc.lock().unwrap();
+        let senders = &mut *client_out_senders_mutex_guard;
+        senders.push(client_sender);
+
+        println!("{} added into clients list", client_address);
     }
 }
