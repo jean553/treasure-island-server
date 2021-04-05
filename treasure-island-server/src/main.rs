@@ -30,6 +30,7 @@ use std::io::Write;
 ///
 /// FIXME: for tests only, we assume the map is 32 tiles-long, as it is not possible to serialize
 /// arrays of more than 32 values; we should divide the map into separated arrays to sent its data;
+/// or we should provide our own serialization function for that longer array
 #[derive(Serialize, Clone, Copy)]
 struct Message {
     map: [u8; 32]
