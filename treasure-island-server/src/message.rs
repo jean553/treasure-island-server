@@ -33,4 +33,13 @@ impl Message {
             map: [DEFAULT_VALUE; MAP_LENGTH]
         }
     }
+
+    /// Map setter.
+    ///
+    /// # Args:
+    ///
+    /// `map` - the map grid
+    pub fn set_map(&mut self, map: [u8; 400]) {
+        self.map = map;
+    }
 }
