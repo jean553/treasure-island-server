@@ -9,11 +9,17 @@ big_array! {
     400
 }
 
+#[derive(Serialize, Clone, Copy)]
+pub enum MessageAction {
+    PushMap,
+}
 
 /// Structure of a message between the server and the client.
 /// NOTE: only one field wrapped into a structure for now, but more fields will be added later
 #[derive(Serialize, Clone, Copy)]
 pub struct Message {
+
+    action: MessageAction,
 
     /* bring the BigArray macro into scope for serialization of custom length array;
        the biggest information to send through a message is the map of 400 bytes long,
@@ -29,8 +35,12 @@ impl Message {
     /// # Args:
     ///
     /// `data` - the 400 bytes of data to send
-    pub fn new(data: [u8; 400]) -> Self {
+    pub fn new(
+        action: MessageAction,
+        data: [u8; 400]
+    ) -> Self {
         Message {
+            action: action,
             data: data
         }
     }

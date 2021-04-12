@@ -9,7 +9,10 @@ mod message;
 mod threads;
 mod sprites;
 
-use message::Message;
+use message::{
+    Message,
+    MessageAction,
+};
 
 use sprites::get_sprite_index_from_tile_value;
 
@@ -217,7 +220,7 @@ fn main() {
 
         for client_out_sender in client_out_senders {
 
-            let message = Message::new(tiles);
+            let message = Message::new(MessageAction::PushMap, tiles);
             client_out_sender.send(message).unwrap();
         }
     }
