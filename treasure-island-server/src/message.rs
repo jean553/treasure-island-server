@@ -15,31 +15,23 @@ big_array! {
 #[derive(Serialize, Clone, Copy)]
 pub struct Message {
 
-    /* bring the BigArray macro into scope for serialization of custom length array */
+    /* bring the BigArray macro into scope for serialization of custom length array;
+       the biggest information to send through a message is the map of 400 bytes long,
+       this is why the data buffer of the message is 400 bytes */
     #[serde(with = "BigArray")]
-    map: [u8; 400]
+    data: [u8; 400]
 }
 
 impl Message {
 
-    /// Message constructor.
-    pub fn new() -> Self {
-
-        /* FIXME: does not send 0 values as the client uses the first index
-           value of the sent data to know if it should consider the message or not */
-        const DEFAULT_VALUE: u8 = 10;
-        const MAP_LENGTH: usize = 400;
-        Message {
-            map: [DEFAULT_VALUE; MAP_LENGTH]
-        }
-    }
-
-    /// Map setter.
+    /// Constructor
     ///
     /// # Args:
     ///
-    /// `map` - the map grid
-    pub fn set_map(&mut self, map: [u8; 400]) {
-        self.map = map;
+    /// `data` - the 400 bytes of data to send
+    pub fn new(data: [u8; 400]) -> Self {
+        Message {
+            data: data
+        }
     }
 }
