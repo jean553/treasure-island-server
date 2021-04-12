@@ -217,7 +217,13 @@ fn main() {
 
         for client_out_sender in client_out_senders {
 
-            let message = Message::new(tiles);
+            const MESSAGE_ACTION_PUSH_MAP: u8 = 1;
+            let mut message = Message::new(MESSAGE_ACTION_PUSH_MAP);
+            message.set_data(tiles);
+            client_out_sender.send(message).unwrap();
+
+            const MESSAGE_ACTION_START_GAME: u8 = 2;
+            let message = Message::new(MESSAGE_ACTION_START_GAME);
             client_out_sender.send(message).unwrap();
         }
     }
