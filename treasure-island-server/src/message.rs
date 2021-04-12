@@ -10,16 +10,16 @@ big_array! {
 }
 
 #[derive(Serialize, Clone, Copy)]
-pub enum MessageAction {
-    PushMap,
-}
-
-/// Structure of a message between the server and the client.
-/// NOTE: only one field wrapped into a structure for now, but more fields will be added later
-#[derive(Serialize, Clone, Copy)]
 pub struct Message {
 
-    action: MessageAction,
+    /* we do not use enums to send actions because:
+       - this is a "raw network" information to be handled both on client and server,
+         having an enumeration may require to maintain same version of the structure
+         from both side,
+       - enumerations might take a padded space in memory according to the architecture,
+         but we have to be sure we only uses one bit,
+       - enumerations are tagged unions, so they may take a few bytes for the type too */
+    action: u8,
 
     /* bring the BigArray macro into scope for serialization of custom length array;
        the biggest information to send through a message is the map of 400 bytes long,
@@ -34,14 +34,23 @@ impl Message {
     ///
     /// # Args:
     ///
-    /// `data` - the 400 bytes of data to send
-    pub fn new(
-        action: MessageAction,
-        data: [u8; 400]
-    ) -> Self {
+    /// `action` - the action of the message
+    pub fn new(action: u8) -> Self {
         Message {
             action: action,
-            data: data
+            data: [0; 400]
         }
+    }
+
+    /// Sets the data to send (400 bytes).
+    ///
+    /// # Args:
+    ///
+    /// `data` - the data to send
+    pub fn set_data(
+        &mut self,
+        data: [u8; 400],
+    ) {
+        self.data = data;
     }
 }
