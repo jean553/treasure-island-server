@@ -217,9 +217,7 @@ fn main() {
 
         for client_out_sender in client_out_senders {
 
-            let mut message = Message::new();
-            message.set_map(tiles);
-
+            let message = Message::new(tiles);
             client_out_sender.send(message).unwrap();
         }
     }
