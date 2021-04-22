@@ -189,8 +189,6 @@ fn main() {
 
         println!("Copy client stream and create dedicated thread to communicate with {}", client_address);
 
-        let stream = stream.try_clone().unwrap();
-
         spawn(|| {
             send_message_into_client_stream(
                 client_receiver,
