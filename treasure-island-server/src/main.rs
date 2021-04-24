@@ -16,6 +16,7 @@ use sprites::get_sprite_index_from_tile_value;
 use threads::{
     forward_messages_from_global_receiver_to_all_clients,
     send_message_into_client_stream,
+    receive_message_from_client_stream,
 };
 
 use rand::thread_rng;
@@ -173,6 +174,7 @@ fn main() {
     for income in listener.incoming() {
 
         let stream = income.unwrap();
+        let read_stream = stream.try_clone().unwrap();
 
         let client_address = stream.peer_addr()
             .unwrap();
@@ -194,6 +196,10 @@ fn main() {
                 client_receiver,
                 stream,
             );
+        });
+
+        spawn(|| {
+            receive_message_from_client_stream(read_stream);
         });
 
         let mut client_out_senders_mutex_guard = clients_out_senders_mutex_main_thread_arc.lock().unwrap();

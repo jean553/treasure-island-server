@@ -14,7 +14,11 @@ use std::sync::{
     Arc,
 };
 
-use std::io::Write;
+use std::io::{
+    Read,
+    Write,
+    BufReader,
+};
 
 /// Contains the whole code of a dedicated thread. Continuously forwards the messages from the
 /// global receiver to all the clients out senders (so to all the clients individually).
@@ -72,5 +76,27 @@ pub fn send_message_into_client_stream(
 
         let data: Vec<u8> = bincode::serialize(&message).unwrap();
         client_stream.write(&data).unwrap();
+    }
+}
+
+/// Conatins the whole code of the a dedicated thread. This thread is spawn once per new client.
+/// Continuously checks for incoming messages from the client.
+///
+/// # Args:
+///
+/// `client_stream` - the dedicated stream of the client, to receive messages
+pub fn receive_message_from_client_stream(client_stream: TcpStream) {
+
+    let mut buffer = BufReader::new(client_stream);
+
+    let mut message: [u8; 32] = [0; 32];
+
+    loop {
+
+        /* blocking */
+        let _ = buffer.read(&mut message).unwrap();
+
+        /* TODO: simply displays the received message from now, should handle it */
+        println!("{:?}", message);
     }
 }
