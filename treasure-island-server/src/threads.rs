@@ -20,6 +20,8 @@ use std::io::{
     BufReader,
 };
 
+use std::str::from_utf8;
+
 /// Contains the whole code of a dedicated thread. Continuously forwards the messages from the
 /// global receiver to all the clients out senders (so to all the clients individually).
 ///
@@ -89,14 +91,32 @@ pub fn receive_message_from_client_stream(client_stream: TcpStream) {
 
     let mut buffer = BufReader::new(client_stream);
 
-    let mut message: [u8; 32] = [0; 32];
+    const BUFFER_LENGTH: usize = 32;
+    let mut message: [u8; BUFFER_LENGTH] = [0; BUFFER_LENGTH];
 
     loop {
 
         /* blocking */
         let _ = buffer.read(&mut message).unwrap();
 
-        /* TODO: simply displays the received message from now, should handle it */
-        println!("{:?}", message);
+        let message_action = message[0];
+
+        const MESSAGE_ACTION_IGNORED: u8 = 0;
+        if message_action == MESSAGE_ACTION_IGNORED {
+            continue;
+        }
+
+        const MESSAGE_ACTION_SEND_USERNAME: u8 = 1;
+        if message_action == MESSAGE_ACTION_SEND_USERNAME {
+
+            const USERNAME_MAX_LENGTH: usize = 31;
+            let mut username_bytes: [u8; USERNAME_MAX_LENGTH] = [0; USERNAME_MAX_LENGTH];
+            username_bytes.copy_from_slice(&message[1..BUFFER_LENGTH]);
+            let username: String = from_utf8(&username_bytes)
+                .unwrap()
+                .to_string();
+
+            println!("New player registered: {}", username);
+        }
     }
 }
