@@ -52,6 +52,7 @@ fn main() {
        used to forward all messages from the global receiver
        in order to broadcast out messages to all clients */
     let clients_out_senders: Vec<Sender<Message>> = Vec::new();
+    let clients_usernames: Vec<String> = Vec::new();
 
     /* clients out senders array is part of the main thread,
        in order to dynamically add one client out sender
@@ -64,6 +65,9 @@ fn main() {
     let clients_out_senders_mutex: Mutex<Vec<Sender<Message>>> = Mutex::new(clients_out_senders);
     let clients_out_senders_mutex_main_thread_arc: Arc<Mutex<Vec<Sender<Message>>>> = Arc::new(clients_out_senders_mutex);
     let clients_out_senders_mutex_global_receiver_to_all_clients_thread_arc = clients_out_senders_mutex_main_thread_arc.clone();
+
+    let clients_usernames_mutex: Mutex<Vec<String>> = Mutex::new(clients_usernames);
+    let clients_usernames_mutex_main_thread_arc: Arc<Mutex<Vec<String>>> = Arc::new(clients_usernames_mutex);
 
     spawn(|| {
         forward_messages_from_global_receiver_to_all_clients(
@@ -112,8 +116,13 @@ fn main() {
             );
         });
 
+        let clients_usernames_mutex_for_one_client = clients_usernames_mutex_main_thread_arc.clone();
+
         spawn(|| {
-            receive_message_from_client_stream(read_stream);
+            receive_message_from_client_stream(
+                read_stream,
+                clients_usernames_mutex_for_one_client,
+            );
         });
 
         let mut client_out_senders_mutex_guard = clients_out_senders_mutex_main_thread_arc.lock().unwrap();

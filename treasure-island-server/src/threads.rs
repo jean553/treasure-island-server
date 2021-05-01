@@ -87,7 +87,10 @@ pub fn send_message_into_client_stream(
 /// # Args:
 ///
 /// `client_stream` - the dedicated stream of the client, to receive messages
-pub fn receive_message_from_client_stream(client_stream: TcpStream) {
+pub fn receive_message_from_client_stream(
+    client_stream: TcpStream,
+    clients_usernames: Arc<Mutex<Vec<String>>>,
+) {
 
     let mut buffer = BufReader::new(client_stream);
 
@@ -115,6 +118,10 @@ pub fn receive_message_from_client_stream(client_stream: TcpStream) {
             let username: String = from_utf8(&username_bytes)
                 .unwrap()
                 .to_string();
+
+            let mut clients_usernames_mutex_guard = clients_usernames.lock().unwrap();
+            let clients_usernames = &mut *clients_usernames_mutex_guard;
+            clients_usernames.push(username.clone());
 
             println!("New player registered: {}", username);
         }
