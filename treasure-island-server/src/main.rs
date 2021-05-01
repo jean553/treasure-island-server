@@ -12,8 +12,6 @@ mod tiles;
 
 use message::Message;
 
-use sprites::get_sprite_index_from_tile_value;
-
 use threads::{
     forward_messages_from_global_receiver_to_all_clients,
     send_message_into_client_stream,
@@ -21,11 +19,6 @@ use threads::{
 };
 
 use tiles::load_tiles;
-
-use rand::thread_rng;
-use rand::Rng;
-
-use std::collections::VecDeque;
 
 use std::net::TcpListener;
 
