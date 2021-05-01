@@ -16,9 +16,8 @@ use threads::{
     forward_messages_from_global_receiver_to_all_clients,
     send_message_into_client_stream,
     receive_message_from_client_stream,
+    main_thread,
 };
-
-use tiles::load_tiles;
 
 use std::net::TcpListener;
 
@@ -63,11 +62,11 @@ fn main() {
        to prevent concurrent access;
        we can then safely clone the clients out senders array pointer */
     let clients_out_senders_mutex: Mutex<Vec<Sender<Message>>> = Mutex::new(clients_out_senders);
-    let clients_out_senders_mutex_main_thread_arc: Arc<Mutex<Vec<Sender<Message>>>> = Arc::new(clients_out_senders_mutex);
-    let clients_out_senders_mutex_global_receiver_to_all_clients_thread_arc = clients_out_senders_mutex_main_thread_arc.clone();
+    let clients_out_senders_mutex_incoming_connections_thread_arc: Arc<Mutex<Vec<Sender<Message>>>> = Arc::new(clients_out_senders_mutex);
+    let clients_out_senders_mutex_global_receiver_to_all_clients_thread_arc = clients_out_senders_mutex_incoming_connections_thread_arc.clone();
 
     let clients_usernames_mutex: Mutex<Vec<String>> = Mutex::new(clients_usernames);
-    let clients_usernames_mutex_main_thread_arc: Arc<Mutex<Vec<String>>> = Arc::new(clients_usernames_mutex);
+    let clients_usernames_mutex_incoming_connections_thread_arc: Arc<Mutex<Vec<String>>> = Arc::new(clients_usernames_mutex);
 
     spawn(|| {
         forward_messages_from_global_receiver_to_all_clients(
@@ -76,18 +75,15 @@ fn main() {
         );
     });
 
-    let mut tiles = load_tiles();
+    let clients_usernames_mutex_main_thread_arc = clients_usernames_mutex_incoming_connections_thread_arc.clone();
+    let clients_out_senders_mutex_main_thread_arc = clients_out_senders_mutex_incoming_connections_thread_arc.clone();
 
-    /* force angles to have water */
-    const FIRST_MAP_ANGLE_TILE_INDEX: usize = 0;
-    const SECOND_MAP_ANGLE_TILE_INDEX: usize = 19;
-    const THIRD_MAP_ANGLE_TILE_INDEX: usize = 380;
-    const FOURTH_MAP_ANGLE_TILE_INDEX: usize = 399;
-    const WATER_TILE_SPRITE_INDEX: u8 = 10;
-    tiles[FIRST_MAP_ANGLE_TILE_INDEX] = WATER_TILE_SPRITE_INDEX;
-    tiles[SECOND_MAP_ANGLE_TILE_INDEX] = WATER_TILE_SPRITE_INDEX;
-    tiles[THIRD_MAP_ANGLE_TILE_INDEX] = WATER_TILE_SPRITE_INDEX;
-    tiles[FOURTH_MAP_ANGLE_TILE_INDEX] = WATER_TILE_SPRITE_INDEX;
+    spawn(|| {
+        main_thread(
+            clients_usernames_mutex_main_thread_arc,
+            clients_out_senders_mutex_main_thread_arc,
+        )
+    });
 
     for income in listener.incoming() {
 
@@ -116,7 +112,7 @@ fn main() {
             );
         });
 
-        let clients_usernames_mutex_for_one_client = clients_usernames_mutex_main_thread_arc.clone();
+        let clients_usernames_mutex_for_one_client = clients_usernames_mutex_incoming_connections_thread_arc.clone();
 
         spawn(|| {
             receive_message_from_client_stream(
@@ -125,33 +121,10 @@ fn main() {
             );
         });
 
-        let mut client_out_senders_mutex_guard = clients_out_senders_mutex_main_thread_arc.lock().unwrap();
+        let mut client_out_senders_mutex_guard = clients_out_senders_mutex_incoming_connections_thread_arc.lock().unwrap();
         let client_out_senders = &mut *client_out_senders_mutex_guard;
         client_out_senders.push(client_sender);
 
         println!("{} added into clients list", client_address);
-
-        const CLIENTS_PER_GAME_AMOUNT: usize = 2;
-        if client_out_senders.len() != CLIENTS_PER_GAME_AMOUNT {
-
-            println!("Waiting for more clients to connect...");
-            continue;
-        }
-
-        println!("Sending map information to clients...");
-
-        /* TODO: sends common level information to all clients */
-
-        for client_out_sender in client_out_senders {
-
-            const MESSAGE_ACTION_PUSH_MAP: u8 = 1;
-            let mut message = Message::new(MESSAGE_ACTION_PUSH_MAP);
-            message.set_data(tiles);
-            client_out_sender.send(message).unwrap();
-
-            const MESSAGE_ACTION_START_GAME: u8 = 2;
-            let message = Message::new(MESSAGE_ACTION_START_GAME);
-            client_out_sender.send(message).unwrap();
-        }
     }
 }
