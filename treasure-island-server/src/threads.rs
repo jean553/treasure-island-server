@@ -2,6 +2,8 @@
 
 use crate::message::Message;
 
+use crate::tiles::load_tiles;
+
 use std::sync::mpsc::{
     Sender,
     Receiver,
@@ -87,7 +89,10 @@ pub fn send_message_into_client_stream(
 /// # Args:
 ///
 /// `client_stream` - the dedicated stream of the client, to receive messages
-pub fn receive_message_from_client_stream(client_stream: TcpStream) {
+pub fn receive_message_from_client_stream(
+    client_stream: TcpStream,
+    clients_usernames: Arc<Mutex<Vec<String>>>,
+) {
 
     let mut buffer = BufReader::new(client_stream);
 
@@ -116,7 +121,68 @@ pub fn receive_message_from_client_stream(client_stream: TcpStream) {
                 .unwrap()
                 .to_string();
 
+            let mut clients_usernames_mutex_guard = clients_usernames.lock().unwrap();
+            let clients_usernames = &mut *clients_usernames_mutex_guard;
+            clients_usernames.push(username.clone());
+
             println!("New player registered: {}", username);
+        }
+    }
+}
+
+/// TODO
+pub fn main_thread(
+    clients_usernames_mutex_arc: Arc<Mutex<Vec<String>>>,
+    clients_out_senders_mutex_arc: Arc<Mutex<Vec<Sender<Message>>>>,
+) -> ! {
+
+    let mut tiles = load_tiles();
+
+    /* force angles to have water */
+    const FIRST_MAP_ANGLE_TILE_INDEX: usize = 0;
+    const SECOND_MAP_ANGLE_TILE_INDEX: usize = 19;
+    const THIRD_MAP_ANGLE_TILE_INDEX: usize = 380;
+    const FOURTH_MAP_ANGLE_TILE_INDEX: usize = 399;
+    const WATER_TILE_SPRITE_INDEX: u8 = 10;
+    tiles[FIRST_MAP_ANGLE_TILE_INDEX] = WATER_TILE_SPRITE_INDEX;
+    tiles[SECOND_MAP_ANGLE_TILE_INDEX] = WATER_TILE_SPRITE_INDEX;
+    tiles[THIRD_MAP_ANGLE_TILE_INDEX] = WATER_TILE_SPRITE_INDEX;
+    tiles[FOURTH_MAP_ANGLE_TILE_INDEX] = WATER_TILE_SPRITE_INDEX;
+
+    /* FIXME: should be an enumeration */
+    const WAITING_FOR_PLAYERS_STATE: u8 = 0;
+    let mut game_state: u8 = WAITING_FOR_PLAYERS_STATE;
+
+    loop {
+
+        if game_state == WAITING_FOR_PLAYERS_STATE {
+
+            let mut clients_usernames_mutex_guard = clients_usernames_mutex_arc.lock().unwrap();
+            let clients_usernames = &mut *clients_usernames_mutex_guard;
+
+            const EXPECTED_USERNAMES_AMOUNT: usize = 2;
+            if clients_usernames.len() == EXPECTED_USERNAMES_AMOUNT {
+
+                println!("Sending map information to clients...");
+
+                let mut clients_out_senders_mutex_guard = clients_out_senders_mutex_arc.lock().unwrap();
+                let clients_out_senders = &mut *clients_out_senders_mutex_guard;
+
+                for client_out_sender in clients_out_senders {
+
+                    const MESSAGE_ACTION_PUSH_MAP: u8 = 1;
+                    let mut message = Message::new(MESSAGE_ACTION_PUSH_MAP);
+                    message.set_data(tiles);
+                    client_out_sender.send(message).unwrap();
+
+                    const MESSAGE_ACTION_START_GAME: u8 = 2;
+                    let message = Message::new(MESSAGE_ACTION_START_GAME);
+                    client_out_sender.send(message).unwrap();
+                }
+
+                const IN_GAME_STATE: u8 = 1;
+                game_state = IN_GAME_STATE;
+            }
         }
     }
 }
